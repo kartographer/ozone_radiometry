@@ -20,9 +20,13 @@ def generate_Tb_spectrum(filename, script, WINDOWS=False):
         subprocess.call(f'./{filename}')
 
 def calc_air_mass(zenith):
+    '''Returns the airmass given the zenith angle in degrees
+    '''
     air_mass = 1/np.cos(np.radians(zenith))
     return air_mass
 
 def calc_zenith(air_mass):
+    '''Returns the zenith angle in degrees given the airmass 
+    '''
     zenith = np.degrees(np.arccos(1/air_mass))
     return zenith
