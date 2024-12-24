@@ -12,17 +12,18 @@ def run(filepath, script):
 
     subprocess.call(f'./{filepath}')
 
-def calc_air_mass(zenith):
-    '''Returns the airmass given the zenith angle in degrees
+def calc_air_mass(zenith, unit='rad'):
+    '''Returns the airmass given the zenith angle in radians
     '''
-    air_mass = 1/np.cos(np.radians(zenith))
-    return air_mass
+    if unit=='rad':
+        return 1/np.cos(zenith)
+    else:
+        return 1/np.cos(np.radians(zenith))
 
 def calc_zenith(air_mass):
-    '''Returns the zenith angle in degrees given the airmass 
+    '''Returns the zenith angle in radians given the airmass 
     '''
-    zenith = np.degrees(np.arccos(1/air_mass))
-    return zenith
+    return np.arccos(1/air_mass)
 
 def DD_CubicHermiteSpline(eval_airmass, eval_nscale, data_dict, reverse=False):
     '''Returns the interpolation of the data given an airmass and nscale value
