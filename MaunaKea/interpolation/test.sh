@@ -1,4 +1,4 @@
 #!/bin/bash
 
-        am MaunaKea_SON_50.amc             180 GHz 420 GHz 1 MHz 75.0 deg 277 K 3.0             > MaunaKea_Tb_Spectrum_3.9_3.0.out             2> MaunaKea_Tb_Spectrum_3.9_3.0.err
+        /home/gkeating/repo/am-14.0/bin/am MaunaKea_SON_50.amc             180 GHz 420 GHz 1 MHz 1.318116071652818 rad 277 K 3.0             > data/MaunaKea_Tb_Spectrum_4.00_3.00.out             2> data/MaunaKea_Tb_Spectrum_4.00_3.00.err
         
