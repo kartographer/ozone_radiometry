@@ -3,7 +3,7 @@ import subprocess
 import numpy as np
 
 def run(filepath, script):
-    '''Creates an execuated file given the script and executes it at the given filepath
+    '''Creates and executes a file given the script at the given filepath
     '''
     with open(filepath, "w") as f:
         f.write("#!/bin/bash\n")    # Add the shebang line
@@ -12,13 +12,11 @@ def run(filepath, script):
 
     subprocess.call(f'./{filepath}')
 
-def calc_air_mass(zenith, unit='rad'):
+def calc_air_mass(zenith):
     '''Returns the airmass given the zenith angle in radians
     '''
-    if unit=='rad':
-        return 1/np.cos(zenith)
-    else:
-        return 1/np.cos(np.radians(zenith))
+    return 1/np.cos(zenith)
+
 
 def calc_zenith(air_mass):
     '''Returns the zenith angle in radians given the airmass 
