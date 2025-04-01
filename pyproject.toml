@@ -1,0 +1,8 @@
+[project]
+name = "ozone_radiometry"
+version = "0.0.1"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+]

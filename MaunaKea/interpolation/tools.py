@@ -23,7 +23,7 @@ def calc_zenith(air_mass):
     '''
     return np.arccos(1/air_mass)
 
-def DD_CubicHermiteSpline(eval_airmass, eval_nscale, data_dict, reverse=False):
+def DD_CubicHermiteSpline(eval_airmass, eval_nscale, data_dict, reverse=False, skip=2):
     '''Returns the interpolation of the data given an airmass and nscale value
 
     `reverse` - set True to reverse the order of operation
@@ -32,12 +32,12 @@ def DD_CubicHermiteSpline(eval_airmass, eval_nscale, data_dict, reverse=False):
     from scipy.interpolate import CubicHermiteSpline
     from scipy.interpolate import RegularGridInterpolator
 
-    Nscale_map = data_dict['Nscale']['map'][::2]
-    Tb_scalar_field = data_dict['Tb_scalar_field'][::2,::2]
-    Nscale_jacobian = data_dict['Nscale']['jacobian'][::2,::2]
-    airmass_map = data_dict['airmass']['map'][::2]
+    Nscale_map = data_dict['Nscale']['map'][::skip]
+    Nscale_jacobian = data_dict['Nscale']['jacobian'][::skip,::skip,:]
+    airmass_map = data_dict['airmass']['map'][::skip]
+    airmass_jacobian = data_dict['airmass']['jacobian'][::skip,::skip,:]
     freq_map = data_dict['freq']['map']
-    airmass_jacobian = data_dict['airmass']['jacobian'][::2,::2]
+    Tb_scalar_field = data_dict['Tb_scalar_field'][::skip,::skip,:]
 
     init_interp_func = CubicHermiteSpline(
         x=Nscale_map if reverse else airmass_map,
