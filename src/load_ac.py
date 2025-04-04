@@ -11,6 +11,8 @@ def moving_median_sliding(arr: np.ndarray, window_size: int, axis : int = 1, nan
             Odd-integer (total) window size over which to computer sliding values
         `axis`  :   int
             Axis number over which to compute sliding values
+        `nan_present`   :   bool
+            Indicates whether data contains nans
     """
     # Symmetric padding
     pad_width = window_size // 2
@@ -31,12 +33,59 @@ def moving_median_sliding(arr: np.ndarray, window_size: int, axis : int = 1, nan
 
     return median, mad
 
+def normalize_ac(data : np.ndarray, method : str = 'mean'):
+    """Placeholder function to normalize autocorrelation data
+    
+    Arguments:
+        `data`  : np.ndarray
+            2D AC data to normalize
+        `method`    :   str
+            Method to normalize
+    """
+    local_copy = data.copy()
+    if method == "mean":
+        local_copy /= np.nanmean(local_copy,axis=0)[None]
+        local_copy /= np.nanmean(local_copy,axis=1)[:, None]
+        local_copy -= np.nanmean(local_copy)
+    return local_copy
+
+
+def spw_spectral_baselining(data : np.ndarray, num_good_points : int):
+    """Function that removes linear baseline ("spectral index") per integration in a spw
+
+    Arguments:
+        `data`  :   np.ndarray
+            2D AC data to calculate linear baseline on
+        `num_good_points`   :   int
+            Number of non-nan/inf channels at beginning and end of integration to fit linear baseline to
+    """
+    local_copy = data.copy()
+
+    channel_numbers = np.arange(local_copy.shape[1])
+
+    for integ in range(local_copy.shape[0]):
+        is_finite = np.isfinite(local_copy[integ, :])
+        good_channels = np.append(channel_numbers[is_finite][:num_good_points], channel_numbers[is_finite][-num_good_points:])
+
+        baseline_params = np.poly1d( np.polyfit(good_channels, local_copy[integ, good_channels], 1) )
+        local_copy[integ, :] -= baseline_params(channel_numbers)
+    
+    return local_copy
+
 def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, 
+<<<<<<< HEAD
                      flagging = True, window_size = 5, 
                      mad_dev = 5.0, fill_val = np.nan, 
                      normalization = True, return_meta = True, 
                      spw_baselining = True, num_good_points = 40,
                      edge_chans = 1024, return_both_sb_freqs = True):
+=======
+                     flagging : bool = True, window_size : int = 11, 
+                     mad_dev : float = 5.0, fill_val : float = np.nan, 
+                     normalization : bool = True, return_meta : bool = True, 
+                     spw_baselining : bool = True, num_good_points : int = 40,
+                     edge_chans : int = 1024, return_both_sb_freqs : bool = True):
+>>>>>>> a8c80df (Splitting out some subfunctions)
     """Code to preprocess autocorrelation data from a telescope
 
     Arguments:
@@ -127,22 +176,13 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int,
             
             data_stack[out_of_bounds] = fill_val
         
-        #Normalize -- what exactly is happening here?
+        #Normalize
         if normalization:
-            data_stack /= np.nanmean(data_stack,axis=0)[None]
-            data_stack /= np.nanmean(data_stack,axis=1)[:, None]
-            data_stack -= np.nanmean(data_stack)
+            data_stack = normalize_ac(data_stack)
 
         #Subtract linear baseline per spectral window 
         if spw_baselining:
-            channel_numbers = np.arange(f_sky_usb.size)
-
-            for integ in range(data_stack.shape[0]):
-                is_finite = np.isfinite(data_stack[integ, :])
-                good_channels = np.append(channel_numbers[is_finite][:num_good_points], channel_numbers[is_finite][-num_good_points:])
-
-                baseline_params = np.poly1d( np.polyfit(good_channels, data_stack[integ, good_channels], 1) )
-                data_stack[integ, :] -= baseline_params(channel_numbers)
+            data_stack = spw_baselining(data_stack, num_good_points)
         
         data_stack = data_stack[:, None, :]
         if return_both_sb_freqs:
