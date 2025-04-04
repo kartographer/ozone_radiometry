@@ -34,7 +34,7 @@ def moving_median_sliding(arr: np.ndarray, window_size: int, axis : int = 1, nan
 def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, 
                      flagging = True, window_size = 5, 
                      mad_dev = 5.0, fill_val = np.nan, 
-                     normalization = True, return_el = True, 
+                     normalization = True, return_meta = True, 
                      spw_baselining = True, num_good_points = 40,
                      edge_chans = 1024, return_both_sb_freqs = True):
     """Code to preprocess autocorrelation data from a telescope
@@ -154,8 +154,8 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int,
         if spw == 1:
             stacked = data_stack
             freqs = f_sky
-            if return_el:
-                elevation = mir_data.eng_data['actual_el']
+            if return_meta:
+                meta = mir_data.eng_data._data[mir_data.eng_data._mask]
 
         else:
             stacked = np.concatenate((stacked, data_stack), axis=1)
@@ -165,7 +165,7 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int,
         mir_data.reset()
 
     #Return elevation and SB freqs if needed
-    if return_el:
-        return freqs, stacked, elevation
+    if return_meta:
+        return freqs, stacked, meta
     else:    
         return freqs, stacked
