@@ -72,20 +72,12 @@ def spw_spectral_baselining(data : np.ndarray, num_good_points : int):
     
     return local_copy
 
-def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, 
-<<<<<<< HEAD
-                     flagging = True, window_size = 5, 
-                     mad_dev = 5.0, fill_val = np.nan, 
-                     normalization = True, return_meta = True, 
-                     spw_baselining = True, num_good_points = 40,
-                     edge_chans = 1024, return_both_sb_freqs = True):
-=======
+def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
                      flagging : bool = True, window_size : int = 11, 
                      mad_dev : float = 5.0, fill_val : float = np.nan, 
                      normalization : bool = True, return_meta : bool = True, 
                      spw_baselining : bool = True, num_good_points : int = 40,
                      edge_chans : int = 1024, return_both_sb_freqs : bool = True):
->>>>>>> a8c80df (Splitting out some subfunctions)
     """Code to preprocess autocorrelation data from a telescope
 
     Arguments:
@@ -105,8 +97,8 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int,
             Value to fill flagged data points with
         `normalization` : bool
             Normalize autocorrelation per spectral window (for FFT subtraction later)
-        `return_el` :   bool
-            Return elevation of telescope per integration?
+        `return_meta` :   bool
+            Return metadata from telescope per integration?
         `spw_baselining`    :   bool
             Remove linear trend per spectral window? Minimizes jumps between spectral windows in edge channels
         `num_good_points`   :   int
