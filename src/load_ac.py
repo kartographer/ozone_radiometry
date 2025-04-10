@@ -16,13 +16,13 @@ def moving_median_sliding(arr: np.ndarray, window_size: int, axis : int = 1, nan
     """
     # Symmetric padding
     pad_width = window_size // 2
-    
+
     # Pad the array on both sides (the padding will be done symmetrically)
     padded_arr = np.pad(arr, [(0, 0) if i != axis else (pad_width, pad_width) for i in range(arr.ndim)], mode='edge')
-    
+
     # Apply sliding window view to the padded array
     windows = np.lib.stride_tricks.sliding_window_view(padded_arr, window_shape=(window_size,), axis=axis)
-    
+
     # Compute the sliding median and MAD
     if nan_present:
         median = np.nanmedian(windows, axis = -1)
@@ -35,7 +35,7 @@ def moving_median_sliding(arr: np.ndarray, window_size: int, axis : int = 1, nan
 
 def normalize_ac(data : np.ndarray, method : str = 'mean'):
     """Placeholder function to normalize autocorrelation data
-    
+
     Arguments:
         `data`  : np.ndarray
             2D AC data to normalize
@@ -69,13 +69,13 @@ def spw_spectral_baselining(data : np.ndarray, num_good_points : int):
 
         baseline_params = np.poly1d( np.polyfit(good_channels, local_copy[integ, good_channels], 1) )
         local_copy[integ, :] -= baseline_params(channel_numbers)
-    
+
     return local_copy
 
-def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
-                     flagging : bool = True, window_size : int = 11, 
-                     mad_dev : float = 5.0, fill_val : float = np.nan, 
-                     normalization : bool = True, return_meta : bool = True, 
+def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int,
+                     flagging : bool = True, window_size : int = 11,
+                     mad_dev : float = 5.0, fill_val : float = np.nan,
+                     normalization : bool = True, return_meta : bool = True,
                      spw_baselining : bool = True, num_good_points : int = 40,
                      edge_chans : int = 1024, return_both_sb_freqs : bool = True):
     """Code to preprocess autocorrelation data from a telescope
@@ -137,7 +137,7 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
                                 ("antrx", "eq", rx_num),
                             ],
                             reset=True)
-        
+
         #Load the data, parse it
         mir_data.load_data()
 
@@ -151,7 +151,7 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
         data_stack = np.vstack(
             [item['data'][edge_chans:-edge_chans] for item in mir_data.auto_data.values()]
         )
-        
+
         #Fsky measures center of SPW, offset from LO by constant delta = Fsky - LO
         #LSB for partner SPW is delta below LO, so Fsky' = LO - delta = 2 LO - Fsky
         #Channel offsets are also mirrored, so add mirrorer channel offset from above
@@ -163,19 +163,19 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
         if flagging:
             med, mad = moving_median_sliding(data_stack, window_size, 1, nan_present=np.any(np.isnan(data_stack)))
 
-            out_of_bounds = np.logical_or(np.less_equal(data_stack, med - mad_dev * mad), 
+            out_of_bounds = np.logical_or(np.less_equal(data_stack, med - mad_dev * mad),
                                           np.greater_equal(data_stack, med + mad_dev * mad))
-            
+
             data_stack[out_of_bounds] = fill_val
-        
+
         #Normalize
         if normalization:
             data_stack = normalize_ac(data_stack)
 
-        #Subtract linear baseline per spectral window 
+        #Subtract linear baseline per spectral window
         if spw_baselining:
-            data_stack = spw_baselining(data_stack, num_good_points)
-        
+            data_stack = spw_spectral_baselining(data_stack, num_good_points)
+
         data_stack = data_stack[:, None, :]
         if return_both_sb_freqs:
             f_sky = np.vstack((f_sky_lsb, f_sky_usb))[None]
@@ -199,5 +199,5 @@ def stack_antenna_ac(mir_data: object, antenna_num: int, rx_num: int, =
     #Return elevation and SB freqs if needed
     if return_meta:
         return freqs, stacked, meta
-    else:    
+    else:
         return freqs, stacked
