@@ -31,7 +31,8 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
     data = 1 * stacked_data
     
     # Ensure all values inside FFT are real
-    data[np.isnan(data) | np.isinf(data)] = 0.0        
+    nan_flag = np.isnan(data) | np.isinf(data)
+    data[nan_flag] = 0.0        
 
     # Make a list of frequencies to add in fitting
     f0_list = np.array([])
@@ -50,7 +51,7 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
     fftfreqs = np.fft.fftfreq(int(2**highest_n), d = 1e3 * np.abs(np.diff(sky_freqs).flatten()[0]))
 
     # For convenience later
-    n_integ, n_spw, n_chan = data.shape[0], data.shape[1], 2**highest_n
+    n_integ, n_spw, n_chan = data.shape[0], data.shape[1], data.shape[2]
 
     # Stores padded sky frequencies for polynominal expansion
     channel_steps = np.arange(-left_pad, 2**highest_n - right_pad)
@@ -62,10 +63,22 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
 
     # Normalized sky frequencies for faster convergence later
     f_sky_norm = 2 * (freqs_pad - np.min(freqs_pad[:, pad_slice])) / (np.max(freqs_pad[:, pad_slice]) - np.min(freqs_pad[:, pad_slice])) - 1
-    
+    f_sky_norm_real = f_sky_norm[:, left_pad : n_chan + left_pad]
+
     # Best-fit model and cleaned spectrum arrays
     model, cleaned = np.zeros(stacked_data.shape), np.zeros(stacked_data.shape)
 
+    # Stores basis for LSQ
+    # n_spw * n_chan (axis 0): total number of channels in fit
+    # (baseline_order + 1) * n_spw + 2 * (freq_order + 1): per-spw baselining terms + standing wave coefficients
+    A = np.zeros((n_spw * n_chan, (baseline_order + 1) * n_spw + 2 * (freq_order + 1) * len(f0_list)))
+    
+    # Build corner of A for independent spw-baseline fitting
+    # Integration independent! So do it once only to speed up
+    for spw in range(n_spw):
+        for n in range(baseline_order + 1):
+            A[spw * n_chan : (spw + 1) * n_chan, (baseline_order + 1) * spw + n] = 1 * f_sky_norm_real[spw, :]**n
+    
     # Go through each integration in the cube
     for integ in range(n_integ):
         padded_integ = np.copy(data[integ, :])
@@ -79,25 +92,12 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
         # (left_pad, right_pad) --> pad along channel axis
         padded_integ = np.pad(padded_integ, ((0, 0), (left_pad, right_pad)))
 
-        # Only fit non-padded data
-        fitting_mask = np.nonzero(padded_integ.flatten())[0]
-
         # Padded FFT along spectral axis only
         padded_fft = np.fft.fft(padded_integ, axis = 1)
         
         # Sum powers in all spws, keeping channels untouched
         summed_psd = np.sum(np.abs(padded_fft)**2.0, axis = 0)
         
-        # Stores basis for LSQ
-        # n_spw * n_chan (axis 0): total number of channels in fit
-        # (baseline_order + 1) * n_spw + 2 * (freq_order + 1): per-spw baselining terms + standing wave coefficients
-        A = np.zeros((n_spw * n_chan, (baseline_order + 1) * n_spw + 2 * (freq_order + 1) * len(f0_list)))
-        
-        # Build corner of A for independent spw-baseline fitting
-        for spw in range(n_spw):
-            for n in range(baseline_order + 1):
-                A[spw * n_chan : (spw + 1) * n_chan, (baseline_order + 1) * spw + n] = 1 * f_sky_norm[spw, :]**n
-    
         # Add standing wave terms into A for fitting
         for idx, f0 in enumerate(f0_list):  
             model_fft = np.zeros(padded_fft.shape, dtype='complex128')
@@ -112,20 +112,24 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
                 model_fft[spw, [peak_amp_position, -peak_amp_position]] = padded_fft[spw, [peak_amp_position, -peak_amp_position]]
 
             #Get standing wave pattern
-            model_re = np.fft.ifft(model_fft.real, axis = 1).real
-            model_im = np.fft.ifft(1j * model_fft.imag, axis = 1).real
+            model_re = np.fft.ifft(model_fft.real, axis = 1).real[:, left_pad : n_chan + left_pad]
+            model_im = np.fft.ifft(1j * model_fft.imag, axis = 1).real[:, left_pad : n_chan + left_pad]
             
             #Add terms into basis matrix
             for n in range(freq_order + 1):
-                A[:, (baseline_order + 1) * n_spw + 2 * idx * (freq_order + 1) + 2 * n]     = model_im.flatten() * f_sky_norm.flatten()**n
-                A[:, (baseline_order + 1) * n_spw + 2 * idx * (freq_order + 1) + 2 * n + 1] = model_re.flatten() * f_sky_norm.flatten()**n
-
+                A[:, (baseline_order + 1) * n_spw + 2 * idx * (freq_order + 1) + 2 * n]     = model_im.flatten() * f_sky_norm_real.flatten()**n
+                A[:, (baseline_order + 1) * n_spw + 2 * idx * (freq_order + 1) + 2 * n + 1] = model_re.flatten() * f_sky_norm_real.flatten()**n
+                
         #Fit the LSQ
-        res = linalg.lstsq(A[fitting_mask, :], padded_integ.flatten()[fitting_mask])[0]
+        res = linalg.lstsq(A, data[integ, :].flatten())[0]
 
         #Store model and cleaned spectrum
-        model[integ, :] = np.matmul(A[fitting_mask, :], res).reshape(data[integ, :].shape)
+        model[integ, :] = np.matmul(A, res).reshape(data[integ, :].shape)
         cleaned[integ, :] = data[integ, :] - model[integ, :]
+
+    #Reflag bad data
+    model[nan_flag] = np.nan
+    cleaned[nan_flag] = np.nan
 
     #Return model and cleaned spectral cubes
     return model, cleaned
