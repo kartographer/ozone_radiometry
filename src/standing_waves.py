@@ -39,8 +39,7 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
     data = 1 * stacked_data
     
     # Ensure all values inside FFT are real
-    nan_flag = np.isnan(data) | np.isinf(data)
-    data[nan_flag] = 0.0        
+    nan_flag = np.isnan(data) | np.isinf(data)    
 
     # Make a list of frequencies to add in fitting
     f0_list = np.array([])
@@ -97,10 +96,15 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
     for integ in range(n_integ):
         padded_integ = np.copy(data[integ, :])
 
+        # Store bad and good flags per integration
+        nan_flag_int = np.isnan(padded_integ) | np.isinf(padded_integ)
+        fin_flag_int = np.isfinite(padded_integ)
+
         # Remove mean DC-baseline from each spw
         for i in range(n_spw):
             padded_integ[i, :] -= np.nanmean(padded_integ[i, :])
-        
+        padded_integ[nan_flag_int] = 0.0
+
         # Data padding 
         # (0, 0) --> no padding along spw axis
         # (left_pad, right_pad) --> pad along channel axis
@@ -138,11 +142,11 @@ def remove_standing_waves(stacked_data: np.ndarray, sky_freqs : np.ndarray,
             A[:, -1] = 1 * pwv_jacobian[i, :]
 
         #Fit the LSQ
-        res = linalg.lstsq(A, data[integ, :].flatten())[0]
+        res = linalg.lstsq(A[fin_flag_int.flatten(), :], data[integ, fin_flag_int].flatten())[0]
 
         #Store model and cleaned spectrum
-        model[integ, :] = np.matmul(A, res).reshape(data[integ, :].shape)
-        cleaned[integ, :] = data[integ, :] - model[integ, :]
+        model[integ, fin_flag_int] = np.matmul(A[fin_flag_int.flatten(), :], res).reshape(data[integ, fin_flag_int].shape)
+        cleaned[integ, fin_flag_int] = data[integ, fin_flag_int] - model[integ, fin_flag_int]
 
         # Store dPWV term if necessary
         if return_delta_pwv:
